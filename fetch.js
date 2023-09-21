@@ -1,16 +1,16 @@
 const axios = require('axios');
 const mysql = require('mysql2/promise'); // We use the promise-based version of mysql2
+require('dotenv').config();
 
 // Define the API URL
 const apiUrl = 'https://reqres.in/api/users?page=2';
 
 // Create a connection pool to your MySQL database
 const pool = mysql.createPool({
-  host: 'localhost', // Replace with your MySQL host
-  user: 'root', // Replace with your MySQL username
-  password: 'password', // Replace with your MySQL password
-  database: 'user_auth_db', // Replace with your MySQL database name
-  connectionLimit: 10, // Adjust this value based on your needs
+    host      : process.env.MYSQL_HOST,
+    user      : process.env.MYSQL_USER,
+    password  : process.env.MYSQL_PASSWORD,
+    database  : process.env.MYSQL_DATABASE,
 });
 
 // Function to fetch data from the API and save it to MySQL
