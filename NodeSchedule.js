@@ -5,7 +5,7 @@ const schedule = require('node-schedule');
 const https = require('https');
 
 // Define the API URL
-const apiUrl = 'https://reqres.in/api/users?page=2';
+const apiUrl = 'https://reqres.in/api/users?delay=3';
 
 const axiosInstance = axios.create({
   httpsAgent: new https.Agent({
@@ -14,7 +14,7 @@ const axiosInstance = axios.create({
 });
 
 // Initialize the last inserted record ID to 6 (assuming you have records with IDs 1 to 6 already)
-let lastInsertedId = 6;
+let lastInsertedId = 0;
 
 // Function to fetch data from the API and save it to MySQL
 async function fetchAndSaveData() {
@@ -54,7 +54,7 @@ async function fetchAndSaveData() {
 }
 
 // Schedule the function to run every 2 minutes
-const job = schedule.scheduleJob('*/5 * * * *', () => {
+const job = schedule.scheduleJob('*/1 * * * *', () => {
   console.log('Scheduled task running...');
   fetchAndSaveData();
 });
