@@ -2,9 +2,11 @@ const axios = require('axios');
 const db = require('./config/db'); // Import your database connection from db.js
 const schedule = require('node-schedule');
 const https = require('https');
+const logger = require('./utils/logger');
+const { log } = require('console');
 
 // Define the API URL
-const apiUrl = 'https://reqres.in/api/users?page=2';
+const apiUrl = 'https://reqres.in/api/users?delay=3';
 
 const axiosInstance = axios.create({
   httpsAgent: new https.Agent({
@@ -13,7 +15,7 @@ const axiosInstance = axios.create({
 });
 
 let currentPage = 1; // Initialize to the first page
-let lastInsertedId = null; // Initialize to null
+let currentIndex = 0; // Initialize to the first record
 
 // Function to fetch data from the API and save it to MySQL
 async function fetchAndSaveData() {
@@ -26,45 +28,59 @@ async function fetchAndSaveData() {
     const userData = response.data.data;
 
     if (userData.length === 0) {
-      console.log('No more records to insert.');
+      console.log('No more records to insert. Stopping scheduler.');
+      logger.logger.info('No more records to insert. Stooping scheduler.');
+      job.cancel(); // Stop the scheduler
       return;
     }
 
-    // Find the next user to insert (skip duplicates)
-    let nextUser = userData.find(user => user.id > lastInsertedId);
-
-    if (!nextUser) {
-      // If no next user found, move to the next page
+    if (currentIndex >= userData.length) {
+      // Move to the next page if all records on the current page have been processed
       currentPage++;
-      nextUser = userData[0]; // Insert the first record on the new page
+      currentIndex = 0;
+      return;
     }
+
+    const user = userData[currentIndex];
 
     // Create a connection from the pool
     const connection = await db.getConnection();
 
-    // Insert the data into the MySQL database
-    const query = 'INSERT INTO apidata (id, email, first_name, last_name, avatar) VALUES (?, ?, ?, ?, ?)';
-    const values = [nextUser.id, nextUser.email, nextUser.first_name, nextUser.last_name, nextUser.avatar];
+    // Check if the record already exists in the database
+    const [existingRow] = await connection.query('SELECT id FROM apidata WHERE id = ?', [user.id]);
 
-    // Use the query method to execute the SQL query
-    await connection.query(query, values);
+    if (existingRow.length === 0) {
+      // Insert the data into the MySQL database
+      const query = 'INSERT INTO apidata (id, email, first_name, last_name, avatar) VALUES (?, ?, ?, ?, ?)';
+      const values = [user.id, user.email, user.first_name, user.last_name, user.avatar];
+
+      // Use the query method to execute the SQL query
+      await connection.query(query, values);
+
+      console.log(`Data for ID ${user.id} saved to MySQL successfully!`);
+      logger.logger.info(`Data for ID ${user.id} saved to MySQL successfully!`)
+    } else {
+      console.log(`Data for ID ${user.id} already exists in MySQL. Skipping.`);
+      logger.info(`Data for ID ${user.id} already exists in MySQL. Skipping.`);
+    }
 
     // Release the connection back to the pool
     connection.release();
 
-    // Update the last inserted record ID
-    lastInsertedId = nextUser.id;
-
-    console.log(`Data for ID ${nextUser.id} saved to MySQL successfully!`);
+    // Move to the next record
+    currentIndex++;
   } catch (error) {
     console.error('Error:', error);
+    logger.error(`Error: `, error);
   }
 }
 
-// Schedule the function to run every 2 minutes
-const job = schedule.scheduleJob('*/2 * * * *', () => {
+// Schedule the function to run every 10 seconds
+const job = schedule.scheduleJob(' */2 * * * *', () => {
   console.log('Scheduled task running...');
+  logger.logger.info('Scheduled task running...');
   fetchAndSaveData();
 });
 
 console.log('Scheduled task started. It will run every 2 minutes.');
+logger.logger.info('Scheduled task started. It will run every 2 minutes.');

@@ -1,5 +1,6 @@
 const axios = require('axios');
 const mysql = require('mysql2/promise'); // We use the promise-based version of mysql2
+const { logger } = require('./utils/logger');
 require('dotenv').config();
 
 // Define the API URL
@@ -35,6 +36,8 @@ if(userData.length) {
     connection.release();
 
     console.log('Data saved to MySQL successfully!');
+    logger.logger.info('Data saved to MySQL successfully!')
+
   } catch (error) {
     console.error('Error:', error);
   } finally {
